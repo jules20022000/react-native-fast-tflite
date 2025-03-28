@@ -31,7 +31,7 @@ export default function App(): React.ReactNode {
   const device = useCameraDevice('back')
 
   // from https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tfLite
-  const model = useTensorflowModel(require('../assets/efficientdet.tflite'))
+  const model = useTensorflowModel(require('../assets/hand_landmark_full.tflite'))
   const actualModel = model.state === 'loaded' ? model.model : undefined
 
   React.useEffect(() => {
@@ -41,29 +41,50 @@ export default function App(): React.ReactNode {
 
   const { resize } = useResizePlugin()
 
+  let handDetectedStart = React.useRef<number | null>(null)
+  let photoLogged = false
+
   const frameProcessor = useFrameProcessor(
     (frame) => {
       'worklet'
-      if (actualModel == null) {
-        // model is still loading...
-        return
-      }
 
-      console.log(`Running inference on ${frame}`)
+      if (actualModel == null) return
+
       const resized = resize(frame, {
         scale: {
-          width: 320,
-          height: 320,
+          width: 224,
+          height: 224,
         },
         pixelFormat: 'rgb',
-        dataType: 'uint8',
+        dataType: 'float32',
       })
+
       const result = actualModel.runSync([resized])
-      const num_detections = result[3]?.[0] ?? 0
-      console.log('Result: ' + num_detections)
+      const landmarks = result[0]
+      const handPresence = result[1]?.[0] ?? 0
+      const handedness = result[2]?.[0] ?? 0
+
+      const now = Date.now()
+
+      if (handPresence >= 0.2) {
+        if (handDetectedStart.current === null) {
+          handDetectedStart.current = now
+        } else if (!photoLogged && now - handDetectedStart.current > 1000) {
+          console.log('📸 Take picture')
+          photoLogged = true
+        }
+
+        console.log('Handedness:', handedness > 0.5 ? 'Right' : 'Left')
+        console.log("Coord : ", landmarks[0])
+      } else {
+        handDetectedStart.current = null
+        photoLogged = false
+        console.log('No hand detected')
+      }
     },
     [actualModel]
   )
+  
 
   React.useEffect(() => {
     requestPermission()
