@@ -193,7 +193,6 @@ export default function App(): React.ReactNode {
           isActive={true} // Ensure camera is active
           frameProcessor={actualModel ? frameProcessor : undefined} // Only attach processor if model is loaded
           pixelFormat="yuv" // Use yuv for camera efficiency, resize handles conversion
-          frameProcessorFps={5} // Optional: Limit FPS to save resources
         />
       ) : (
         <Text style={styles.errorText}>Camera permission required.</Text>
